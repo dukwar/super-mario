@@ -1,34 +1,51 @@
-import img from '../assets/tiles.png'
-import SpriteSheet from "./Models/SpriteSheet"
-import {loadImage, loadLevel} from "./Loaders/Loaders"
+import {loadLevel} from "./loaders/loaders"
+import {loadBackgroundSprites, loadMarioSprite} from "./sprites/sprites";
+import Compositor from "./Models/Compositor";
+import {createBackgroundLayer} from "./layers/layers";
+
 export function start() {
-
-    function drawBackground(background, context, sprites) {
-        background.ranges.forEach(([x1, x2, y1, y2]) => {
-            for (let x = x1; x < x2; x++) {
-                for (let y = y1; y < y2; y++) {
-                    sprites.drawTile(background.tile, context, x , y)
-
-                }
-            }
-        })
-
-    }
 
     const canvas = document.getElementById('screen')
     const context = canvas.getContext('2d')
 
-    loadImage(img).then(image => {
-        const sprites = new SpriteSheet(image, 16, 16)
-        sprites.define('ground', 0, 0)
-        sprites.define('sky', 3, 23)
 
-        loadLevel('1-1').then(level => {
-            console.log(level)
-            level.backgrounds.forEach(background => {
-                drawBackground(background, context, sprites)
-            })
+    function createSpriteLayer(sprite, pos) {
+        return function drawSpriteLayer() {
+            sprite.draw('idle', context, pos.x, pos.y)
+        }
+
+    }
+
+
+    Promise.all([
+        loadMarioSprite(),
+        loadBackgroundSprites(),
+        loadLevel('1-1')
+
+    ])
+        .then(([marioSprite, backgroundSprite, level]) => {
+            const comp = new Compositor()
+            const backgroundLayer = createBackgroundLayer(level.backgrounds, backgroundSprite)
+            comp.layers.push(backgroundLayer)
+
+            const pos = {
+                x: 64,
+                y: 64,
+            }
+
+            const spriteLayer = createSpriteLayer(marioSprite, pos)
+            comp.layers.push(spriteLayer)
+
+
+            function update() {
+                comp.draw(context)
+                marioSprite.draw('idle', context, pos.x, pos.y)
+                pos.x += 2
+                pos.y += 2
+                requestAnimationFrame(update)
+            }
+
+            update()
         })
-    })
 
 }
